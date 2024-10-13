@@ -1,0 +1,282 @@
+---
+title: "Week 6: Project 2 - Data Transformation"
+author: "Md Asadul Islam"
+date: "`r Sys.Date()`"
+output: openintro::lab_report
+---
+
+```{r load-packages, message=FALSE}
+library(dplyr)
+library(ggplot2)
+```
+
+### Wide Dataset 1 - 	FL - Housing Insecurity Indicators Dataset 
+This dataset of potential indicators to assess people's risk of losing their homes in Florida.The author intended to use the dataset to understand which groups of people are at higher risk of lossing their homes in Florida.The dataset and analysis is as done below:
+
+```{r code-chunk-label for dataset 1}
+# Reading the dataset
+housing_dt <- read.csv("C:\\Users\\HP\\Downloads\\data_1-FL.csv", sep=",", )
+
+# View the columns
+colnames(housing_dt)
+
+# Inspect the dataset
+str(housing_dt)
+summary(housing_dt)
+#Clean data
+demographic_summary <- housing_dt %>%
+  summarize(
+    avg_income = mean(`b19083_001e`, na.rm = TRUE),
+    avg_poverty_level = mean(`s1701_c03_001e`, na.rm = TRUE),
+    avg_employment = mean(`b23025_002e`, na.rm = TRUE),
+    avg_unemployment = mean(`b23025_005e`, na.rm = TRUE)
+  )
+
+print(demographic_summary)
+
+# Do the analysis
+ggplot(housing_dt, aes(x = factor(state), y = `s1701_c03_001e`, fill = factor(county))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Poverty Level by State and County", x = "State", y = "Poverty Level")
+
+ggplot(housing_dt, aes(x = factor(state), y = `b19083_001e`, fill = factor(county))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Income Level by State and County", x = "State", y = "Income Level")
+
+ggplot(housing_dt, aes(x = factor(state), y = `b23025_002e`, fill = factor(county))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Employment Level by State and County", x = "State", y = "Employment Level")
+
+ggplot(housing_dt, aes(x = factor(state), y = `b23025_005e`, fill = factor(county))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Unemployment Level by State and County", x = "State", y = "Unemployment Level")
+
+
+
+```
+
+### Analysis and Conclusion for Dataset 1
+
+Descriptive Statistics
+
+The dataset includes the following columns:
+
+1. geoid: Geographic identifier.
+2. geoid_year: Year of the geographic data.
+3. state: State code.
+4. county: County code.
+5. state_fips_code: Federal Information Processing Standards code for the state.
+6. county_fips_code: Federal Information Processing Standards code for the county.
+7. Various socio-economic indicators such as b19083_001e, b23025_002e, s1701_c03_001e, s1903_c03_001e, and s2701_c03_001e representing different economic, employment, poverty, and health statistics.
+
+Key Observations
+
+1. geoid and geoid_year:
+
+The geographic identifier ranges from 12,000,000,000 to over 12,020,000,000, representing different geographic entities.
+The year is consistently 2020, indicating that all data points are from the same year.
+
+2. State and County Codes:
+
+The state code and state FIPS code both have a minimum value of 12, which corresponds to Florida.
+County codes range from 1 to 133, representing various counties within the state.
+
+3.Economic and Employment Indicators:
+
+b19083_001e (Median Household Income): Shows wide variation with minimum values indicating potential outliers or errors (e.g., -666666666).
+
+b23025_002e (Labor Force): Minimum values are zero, suggesting that some counties may have reported no active labor force.
+b23025_004e (Employment): Similarly shows minimum values of zero, indicating no employment in some areas.
+b23025_005e (Unemployment): Minimum values of zero but first quartile (Q1) values are much higher, indicating that unemployment is prevalent in certain counties.
+
+4. Poverty Indicators:
+
+s1701_c03_001e (Poverty Rate): Contains negative values which are likely errors or placeholders for missing data (e.g., -666666666).
+Other poverty indicators like s1701_c03_002e to s1701_c03_021e follow a similar pattern with erroneous minimum values.
+
+5. Health Indicators:
+
+s2701_c03_001e (Health Insurance Coverage): Minimum values are negative, indicating potential data entry issues.
+
+In conclusion, income levels play a key role in lack of housing in Florida.
+
+### Dataset 2 - Hotel Booking
+
+The Hotel Booking demand dataset contains booking information for a city hotel and a resort hotel. It includes information such as booking time, length of stay, number of adults, children, number of available parking and other things. I plan to use the data to suggest the best time of the year to book an hotel room, the optimal length of stay, and then predict whether an hotel will receive unexpected new guests.
+
+```{R code chunk for dataset 2}
+# Reading the dataset
+hotel_dt <- read.csv("C:\\Users\\HP\\Downloads\\archive\\hotel_bookings.csv", sep=",", )
+
+# View the columns
+colnames(hotel_dt)
+
+# Inspect the dataset
+str(hotel_dt)
+summary(hotel_dt)
+
+# Clean data
+missing_values <- colSums(is.na(hotel_dt))
+print(missing_values)
+
+# Drop rows with missing values in critical columns (like 'adr' or 'hotel')
+hotel_data_clean <- hotel_dt %>%
+  filter(!is.na(adr), !is.na(hotel))
+
+# Convert categorical variables
+hotel_data_clean$arrival_date_month <- factor(hotel_data_clean$arrival_date_month, 
+                                               levels = month.abb, 
+                                               labels = month.name)
+
+# Create a total stay variable
+hotel_data_clean$total_stay <- hotel_data_clean$stays_in_weekend_nights + hotel_data_clean$stays_in_week_nights
+
+# Best Time to Book
+monthly_analysis <- hotel_data_clean %>%
+  group_by(arrival_date_month) %>%
+  summarise(avg_adr = mean(adr, na.rm = TRUE),
+            cancel_rate = mean(is_canceled, na.rm = TRUE)) %>%
+  arrange(arrival_date_month)
+
+# Print monthly analysis
+print(monthly_analysis)
+
+# Plot the Average Daily Rate (ADR) and Cancellation Rate by Month
+ggplot(monthly_analysis, aes(x = arrival_date_month)) +
+  geom_line(aes(y = avg_adr, color = "Average Daily Rate"), size = 1) +
+  geom_line(aes(y = cancel_rate * 100, color = "Cancellation Rate"), size = 1) +
+  scale_y_continuous(sec.axis = sec_axis(~./100, name = "Cancellation Rate (%)")) +
+  labs(title = "ADR and Cancellation Rate by Month", y = "ADR", x = "Month") +
+  theme_minimal()
+
+# Optimal Length of Stay
+stay_analysis <- hotel_data_clean %>%
+  group_by(total_stay) %>%
+  summarise(avg_adr = mean(adr, na.rm = TRUE),
+            cancel_rate = mean(is_canceled, na.rm = TRUE))
+
+# Print stay analysis
+print(stay_analysis)
+
+# Plot the Average Daily Rate (ADR) and Cancellation Rate by Length of Stay
+ggplot(stay_analysis, aes(x = total_stay)) +
+  geom_line(aes(y = avg_adr, color = "Average Daily Rate"), size = 1) +
+  geom_line(aes(y = cancel_rate * 100, color = "Cancellation Rate"), size = 1) +
+  scale_y_continuous(sec.axis = sec_axis(~./100, name = "Cancellation Rate (%)")) +
+  labs(title = "ADR and Cancellation Rate by Length of Stay", y = "ADR", x = "Length of Stay (Nights)") +
+  theme_minimal()
+
+# Define formula
+model <- glm(is_canceled ~ lead_time + total_stay + total_of_special_requests,
+             data = hotel_data_clean,
+             family = binomial)
+
+# Summary of the model
+summary(model)
+
+
+```
+### Data Analysis for Dataset 2
+
+1. Intercept:
+
+The intercept coefficient is −0.7805 −0.7805 with a highly significant p-value (<2𝑒−16
+<2e−16). This value represents the log odds of cancellation when all predictors are at zero. In practical terms, it serves as a baseline for the model.
+
+2. Lead Time:
+
+The coefficient for lead time is 0.0057 with a very significant p-value (<2𝑒−16<2e−16). This positive coefficient indicates that as the lead time (the number of days between booking and arrival) increases, the odds of cancellation also increase. Specifically, for every additional day in lead time, the odds of cancellation increase by approximately 
+0.57%.
+
+3. Total Stay: 
+
+The coefficient for total stay is −0.0057 with a significant p-value (0.0264). This negative coefficient implies that longer stays are associated with a decreased likelihood of cancellation. Specifically, for each additional night of stay, the odds of cancellation decrease by about 0.57%.
+
+4. Total of Special Requests:
+
+The coefficient for total of special requests is −0.6889 with a highly significant p-value (<2𝑒−16<2e−16). This large negative coefficient suggests that if a guest makes special requests, the odds of cancellation decrease significantly. For each additional special request made, the odds of cancellation decrease by approximately 49.8%
+49.8%. This indicates that guests who request special services or amenities are more likely to follow through with their reservations.
+
+5. Model Fit:
+
+The model has a null deviance of 157398 and a residual deviance of 141050. The reduction in deviance indicates that the predictors included in the model improve its fit compared to a model with no predictors.The AIC (Akaike Information Criterion) value of 141058 can be used for model comparison, with lower values indicating a better fit relative to other models.
+
+### Conclusion for Dataset 2
+Lead time is a crucial factor in predicting cancellations, with longer lead times correlating to higher cancellation rates. This suggests that booking strategies might consider encouraging shorter lead times to secure confirmed reservations.
+
+Total stay plays a significant role, as longer stays correlate with reduced cancellation rates. This finding may inform pricing strategies or promotions aimed at encouraging longer stays.
+
+Special requests are a strong predictor of booking commitment. Hotels could leverage this information by encouraging guests to make special requests, which may enhance customer loyalty and reduce cancellations.
+
+### DataSet 3 -  World Population
+
+```{r code chunk for dataset 3}
+# Reading the dataset
+population_dt <- read.csv("C:\\Users\\HP\\Downloads\\world_population.csv", sep=",", )
+
+# View the columns
+colnames(population_dt)
+
+# Inspect the dataset
+str(population_dt)
+
+# Clean the dataset
+missing_values <- colSums(is.na(population_dt))
+
+#summary
+summary(population_dt)
+
+# Remove duplicates
+population_dt <- population_dt %>% distinct()
+
+# Rename columns for easier access
+population_dt <- population_dt %>%
+  rename(
+    Population_2022 = X2022.Population,
+    Population_2020 = X2020.Population,
+    Population_2015 = X2015.Population,
+    Population_2010 = X2010.Population,
+    Population_2000 = X2000.Population,
+    Population_1990 = X1990.Population,
+    Population_1980 = X1980.Population,
+    Population_1970 = X1970.Population,
+    Area_km2 = Area..km..
+  )
+# Calculate growth from 2010 to 2022
+population_dt <- population_dt %>%
+  mutate(Growth_2010_2022 = Population_2022 - Population_2010)
+
+
+# Calculate population density
+population_dt <- population_dt %>%
+  mutate(Density = Population_2022 / Area_km2)
+
+# Bar chart of the top 10 countries by population
+top_10 <- population_dt %>%
+  arrange(desc(Population_2022)) %>%
+  head(10)
+
+ggplot(top_10, aes(x = reorder(Country.Territory, -Population_2022), y = Population_2022)) +
+  geom_bar(stat = "identity", fill = "blue") +
+  labs(title = "Top 10 Countries by Population (2022)", x = "Country/Territory", y = "Population") +
+  theme_minimal() +
+  coord_flip()
+
+# Show summary statistics
+print(summary)
+
+# Print missing values
+print(missing_values)
+
+```
+
+### Analysis of Dataset 3
+
+The dataset provides a comprehensive overview of population statistics across various countries and territories. After cleaning the data, we confirmed there were no significant missing values or duplicates, ensuring the integrity of our analysis. Key population metrics were computed, revealing a considerable variation in population sizes, with the highest being over 1.4 billion. The population growth from 2010 to 2022 was calculated for each country, indicating notable increases in several regions, particularly in Asia and Africa. The calculated population density highlighted disparities, as some smaller nations exhibited high densities, suggesting urbanization pressures and resource management challenges. The bar chart showcasing the top 10 countries by population illustrates the dominance of populous nations like China and India, reflecting their significant contributions to global demographics. This analysis underscores the dynamic nature of global populations, influenced by factors such as urbanization, fertility rates, and migration patterns.
+
+### Conclusion
+
+In conclusion, the analysis of the population dataset reveals critical insights into global demographics, emphasizing the stark contrasts in population growth and density among countries. As nations continue to evolve, understanding these dynamics is essential for policymakers and researchers. Addressing the challenges of rapid population growth and urbanization will be crucial in shaping sustainable development strategies, particularly in densely populated regions. The findings highlight the need for targeted interventions to manage resources effectively and support communities facing the pressures of changing demographics.
+
+...
+
